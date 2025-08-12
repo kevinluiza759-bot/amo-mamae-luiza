@@ -61,7 +61,7 @@ const CAVBot = () => {
 
   // Contexto de Avarias no bot
   type AnguloAvaria = 'frontal' | 'traseira' | 'esquerdo' | 'direito' | 'mecanico' | 'interno';
-  type Policial = { id: string; NOME: string; Matrícula: string | number; nomeGuerra1?: string; acessos?: { gestaoLogistica?: boolean; cavbot?: boolean; reservaArmamento?: boolean; guardaQuartel?: boolean } };
+  type Policial = { id: string; NOME: string; Matrícula: string | number; nomeGuerra1?: string; acessos?: { gestaoLogistica?: boolean; cavbot?: boolean; reservaArmamento?: boolean; guardaQuartel?: boolean }; primeiroAcesso?: boolean; senhaDefault?: boolean };
   const [policialLogado, setPolicialLogado] = useState<Policial | null>(null);
   const [avariasViatura, setAvariasViatura] = useState<ViaturaBasica | null>(null);
   const [avariasAngulo, setAvariasAngulo] = useState<AnguloAvaria>('frontal');
@@ -95,6 +95,12 @@ const CAVBot = () => {
   const [kmFinalInput, setKmFinalInput] = useState('');
   const [encerrarMsg, setEncerrarMsg] = useState<string>('');
   const [policialEncerrar, setPolicialEncerrar] = useState<{ id: string; NOME: string; nomeGuerra1?: string } | null>(null);
+
+  // Troca de senha no primeiro acesso
+  const [showTrocarSenha, setShowTrocarSenha] = useState(false);
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmNovaSenha, setConfirmNovaSenha] = useState('');
+  const [trocarSenhaMsg, setTrocarSenhaMsg] = useState('');
 
   const allowedOperacionais = ['05', '06', '08', '11', '12', '13'];
   const isOperacionalCadastro = (cad?: string): boolean => {
@@ -142,9 +148,18 @@ const CAVBot = () => {
       const d = snap.docs[0];
       const data: any = d.data();
       const primeiroAcesso = data.primeiroAcesso !== false || !data.senha;
-      const senhaOk = primeiroAcesso ? pass === mat : data.senha === pass;
+      const senhaDefault = data.senha ? String(data.senha) === String(data.Matrícula) : true;
+      const senhaOk = primeiroAcesso ? pass === String(mat) : String(data.senha) === String(pass);
       if (!senhaOk) return null;
-      return { id: d.id, NOME: data.NOME, Matrícula: data.Matrícula, nomeGuerra1: data['NOME DE GUERRA1'] || data['NOME DE GUERRA'] || data.NOME, acessos: data.acessos || {} };
+      return {
+        id: d.id,
+        NOME: data.NOME,
+        Matrícula: data.Matrícula,
+        nomeGuerra1: data['NOME DE GUERRA1'] || data['NOME DE GUERRA'] || data.NOME,
+        acessos: data.acessos || {},
+        primeiroAcesso,
+        senhaDefault,
+      };
     } catch (e) {
       console.error('Erro ao verificar policial:', e);
       return null;
@@ -441,6 +456,10 @@ const CAVBot = () => {
         }
         setPolicialLogado(pol);
         pushBot(`✅ Logado como ${pol.NOME}.`);
+        // Primeira vez com senha igual à matrícula: exigir troca de senha
+        if ((pol as any).senhaDefault || textToSend === String(flow.matricula || '')) {
+          setShowTrocarSenha(true);
+        }
 
         // Restrição: Consultar Viatura apenas para quem tem acesso à Gestão e Logística
         if (type === 'vtr' && !(pol.acessos?.gestaoLogistica)) {
@@ -1154,6 +1173,43 @@ const CAVBot = () => {
                 }}>
                   Registrar
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTrocarSenha && policialLogado && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }}>
+          <div style={{ background: '#111827', border: '1px solid #374151', borderRadius: 12, padding: '1rem', width: 'min(520px, 92vw)' }}>
+            <div className="quick-actions-header" style={{ marginBottom: '0.75rem' }}>Definir nova senha</div>
+            <div style={{ color: '#9ca3af', marginBottom: 8 }}>Por segurança, defina uma nova senha diferente da sua matrícula.</div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#9ca3af', marginBottom: 6 }}>Nova senha</label>
+                <input type="password" value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="Nova senha" style={{ width: '100%', background: '#1f2937', color: '#f9fafb', border: '1px solid #374151', borderRadius: 8, padding: '0.5rem 0.75rem' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#9ca3af', marginBottom: 6 }}>Confirmar senha</label>
+                <input type="password" value={confirmNovaSenha} onChange={e => setConfirmNovaSenha(e.target.value)} placeholder="Confirmar senha" style={{ width: '100%', background: '#1f2937', color: '#f9fafb', border: '1px solid #374151', borderRadius: 8, padding: '0.5rem 0.75rem' }} />
+              </div>
+              {trocarSenhaMsg && <div style={{ color: trocarSenhaMsg.startsWith('✅') ? '#86efac' : '#fca5a5' }}>{trocarSenhaMsg}</div>}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button className="quick-button" onClick={() => { setShowTrocarSenha(false); setNovaSenha(''); setConfirmNovaSenha(''); setTrocarSenhaMsg(''); }}>Cancelar</button>
+                <button className="quick-button" onClick={async () => {
+                  const matStr = String(policialLogado?.Matrícula || '');
+                  if (novaSenha.length < 6) { setTrocarSenhaMsg('A senha deve ter pelo menos 6 caracteres.'); return; }
+                  if (novaSenha !== confirmNovaSenha) { setTrocarSenhaMsg('As senhas não conferem.'); return; }
+                  if (novaSenha === matStr) { setTrocarSenhaMsg('A nova senha não pode ser igual à matrícula.'); return; }
+                  try {
+                    await updateDoc(doc(db, 'policiais', policialLogado!.id), { senha: novaSenha, primeiroAcesso: false });
+                    setTrocarSenhaMsg('✅ Senha atualizada com sucesso.');
+                    pushBot('🔒 Senha atualizada com sucesso.');
+                    setTimeout(() => { setShowTrocarSenha(false); setNovaSenha(''); setConfirmNovaSenha(''); setTrocarSenhaMsg(''); }, 800);
+                  } catch (e) {
+                    setTrocarSenhaMsg('Erro ao atualizar a senha.');
+                  }
+                }}>Salvar</button>
               </div>
             </div>
           </div>
