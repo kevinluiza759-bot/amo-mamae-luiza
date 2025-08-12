@@ -35,6 +35,7 @@ const TacticalSidebar = ({ activeSection, onSectionChange, isAdmin = false }: Ta
     { id: 'gestao-pessoas', label: 'GESTÃO PESSOAS', icon: Users, badge: null },
     { id: 'documentos', label: 'DOCUMENTOS', icon: FileText, badge: null },
     { id: 'ordens-servico', label: 'OS\'s', icon: FileText, badge: null },
+    { id: 'servicos', label: 'SERVIÇOS', icon: FileText, badge: null },
   ];
 
   const userMenuItems = [

@@ -265,14 +265,22 @@ const AvariasPage = () => {
     }
   };
 
-  const removerAvaria = (idAvaria: string) => {
-    setAvariasData(prev =>
-      prev.map(v =>
-        v.placaViatura === viaturaAtual
-          ? { ...v, avarias: v.avarias.filter(a => a.id !== idAvaria) }
-          : v
-      )
-    );
+  const removerAvaria = async (idAvaria: string) => {
+    if (!viaturaAtual) return;
+    const viaturaEncontrada = viaturasFrota.find(v => v.placa === viaturaAtual);
+    if (!viaturaEncontrada) return;
+
+    try {
+      const novasAvarias = (viaturaEncontrada.avarias || []).filter((a: any) => a.id !== idAvaria);
+      await updateDoc(doc(db, 'frota', viaturaEncontrada.id), { avarias: novasAvarias });
+
+      // Atualiza estados locais
+      setViaturasFrota(prev => prev.map(v => v.id === viaturaEncontrada.id ? { ...v, avarias: novasAvarias } : v));
+      setAvariasData(prev => prev.map(v => v.placaViatura === viaturaAtual ? { ...v, avarias: novasAvarias } : v));
+    } catch (e) {
+      console.error('Erro ao remover avaria:', e);
+      toast({ title: 'Erro', description: 'Não foi possível excluir a avaria.', variant: 'destructive' });
+    }
   };
 
   const getViaturaAtualData = () => {

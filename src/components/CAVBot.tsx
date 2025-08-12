@@ -61,7 +61,7 @@ const CAVBot = () => {
 
   // Contexto de Avarias no bot
   type AnguloAvaria = 'frontal' | 'traseira' | 'esquerdo' | 'direito' | 'mecanico' | 'interno';
-  type Policial = { id: string; NOME: string; Matrícula: string | number; nomeGuerra1?: string };
+  type Policial = { id: string; NOME: string; Matrícula: string | number; nomeGuerra1?: string; acessos?: { gestaoLogistica?: boolean; cavbot?: boolean; reservaArmamento?: boolean; guardaQuartel?: boolean } };
   const [policialLogado, setPolicialLogado] = useState<Policial | null>(null);
   const [avariasViatura, setAvariasViatura] = useState<ViaturaBasica | null>(null);
   const [avariasAngulo, setAvariasAngulo] = useState<AnguloAvaria>('frontal');
@@ -144,7 +144,7 @@ const CAVBot = () => {
       const primeiroAcesso = data.primeiroAcesso !== false || !data.senha;
       const senhaOk = primeiroAcesso ? pass === mat : data.senha === pass;
       if (!senhaOk) return null;
-      return { id: d.id, NOME: data.NOME, Matrícula: data.Matrícula, nomeGuerra1: data['NOME DE GUERRA1'] || data['NOME DE GUERRA'] || data.NOME };
+      return { id: d.id, NOME: data.NOME, Matrícula: data.Matrícula, nomeGuerra1: data['NOME DE GUERRA1'] || data['NOME DE GUERRA'] || data.NOME, acessos: data.acessos || {} };
     } catch (e) {
       console.error('Erro ao verificar policial:', e);
       return null;
@@ -195,8 +195,11 @@ const CAVBot = () => {
   };
 
   // Iniciar serviço diário
-  const iniciarServico = async () => {
-    if (!avariasViatura || !policialLogado || !servicoDraft.kmInicial || !servicoDraft.area) {
+  const iniciarServico = async (payload?: { motorista?: string; kmInicial: number; area: string }) => {
+    const kmInicialVal = payload?.kmInicial ?? servicoDraft.kmInicial;
+    const areaVal = payload?.area ?? servicoDraft.area;
+    const motoristaVal = payload?.motorista ?? servicoDraft.motorista ?? (policialLogado?.nomeGuerra1 || policialLogado?.NOME);
+    if (!avariasViatura || !policialLogado || !kmInicialVal || !areaVal) {
       pushBot('Preencha KM inicial e área para iniciar o serviço.');
       return;
     }
@@ -205,18 +208,18 @@ const CAVBot = () => {
         viaturaId: avariasViatura.id,
         cadastro: avariasViatura.CADASTRO || null,
         placa: avariasViatura.PLACA,
-        motorista: servicoDraft.motorista || (policialLogado.nomeGuerra1 || policialLogado.NOME),
+        motorista: motoristaVal,
         motoristaId: policialLogado.id,
-        kmInicial: servicoDraft.kmInicial,
-        area: servicoDraft.area,
-        localAtuacao: servicoDraft.area,
+        kmInicial: kmInicialVal,
+        area: areaVal,
+        localAtuacao: areaVal,
         status: 'aberto',
         iniciadoEm: new Date().toISOString(),
         policialId: policialLogado.id,
         policialNome: policialLogado.NOME,
         policialNomeGuerra1: policialLogado.nomeGuerra1 || null,
       });
-      setServicoAberto({ id: docRef.id, ...servicoDraft, status: 'aberto' });
+      setServicoAberto({ id: docRef.id, motorista: motoristaVal, kmInicial: kmInicialVal, area: areaVal, status: 'aberto', viaturaId: avariasViatura.id });
       pushBot('✅ Serviço iniciado com sucesso.');
       setServicoDraft({});
     } catch (e) {
@@ -240,6 +243,11 @@ const CAVBot = () => {
         encerradoPorId: policialLogado?.id || null,
         encerradoPorNome: policialLogado?.NOME || null,
       });
+      // Atualizar KM da VTR na coleção 'frota'
+      const vtrId = avariasViatura?.id || (servicoAberto as any)?.viaturaId;
+      if (vtrId) {
+        await updateDoc(doc(db, 'frota', vtrId), { KM: kmFinal });
+      }
       setServicoAberto(null);
       pushBot('✅ Serviço encerrado com sucesso.');
     } catch (e) {
@@ -434,6 +442,14 @@ const CAVBot = () => {
         setPolicialLogado(pol);
         pushBot(`✅ Logado como ${pol.NOME}.`);
 
+        // Restrição: Consultar Viatura apenas para quem tem acesso à Gestão e Logística
+        if (type === 'vtr' && !(pol.acessos?.gestaoLogistica)) {
+          pushBot('🔒 Acesso negado: apenas usuários com permissão "GESTÃO E LOGÍSTICA" podem consultar viaturas.');
+          setFlow({ active: false });
+          setShowQuickButtons(true);
+          return;
+        }
+
         if (type === 'os') {
           setFlow(prev => ({ ...prev, stage: 'ask_target' }));
           pushBot('Digite o número da OS:');
@@ -523,7 +539,7 @@ const CAVBot = () => {
         }
         if (flow.stage === 'service_start_area') {
           setServicoDraft(prev => ({ ...prev, area: textToSend }));
-          await iniciarServico();
+          await iniciarServico({ motorista: servicoDraft.motorista ?? (policialLogado?.nomeGuerra1 || policialLogado?.NOME), kmInicial: (servicoDraft.kmInicial as number), area: textToSend });
           setFlow(prev => ({ ...prev, stage: 'avarias_ui' }));
           return;
         }

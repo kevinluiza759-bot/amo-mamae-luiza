@@ -19,6 +19,7 @@ import FrotaPage from '@/components/FrotaPage';
 import DocumentosPage from './DocumentosPaga';
 import OrdemServicoPage from '@/components/OrdemServicoPage';
 import GestaoAcesso from '@/components/GestaoAcesso';
+import ServicosPage from '@/components/frota/ServicosPage';
 
 const AdminDashboard = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -46,6 +47,8 @@ const AdminDashboard = () => {
         return <DocumentosContent locationState={location.state} />;
       case 'ordens-servico': // <--- Adicione este novo case
         return <OrdemServicoPage />; // <--- Renderiza o novo componente
+      case 'servicos':
+        return <ServicosPage />;
       default:
         return <DashboardOverview />;
     }
