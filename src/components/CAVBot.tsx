@@ -83,6 +83,18 @@ const CAVBot = () => {
   const [modalDesc, setModalDesc] = useState('');
   const [modalGravidade, setModalGravidade] = useState<'LEVE' | 'MODERADA' | 'GRAVE'>('LEVE');
   const [avariaSelecionada, setAvariaSelecionada] = useState<any | null>(null);
+  const [showAvariaDetalhe, setShowAvariaDetalhe] = useState(false);
+  
+  // Encerramento de serviço via menu
+  type ServicoItem = { id: string; viaturaId: string; cadastro?: string | null; placa?: string; motorista?: string; motoristaId?: string; kmInicial?: number; area?: string };
+  const [showEncerrarModal, setShowEncerrarModal] = useState(false);
+  const [encerrarStep, setEncerrarStep] = useState<'list' | 'senha' | 'km'>('list');
+  const [servicosAbertos, setServicosAbertos] = useState<ServicoItem[]>([]);
+  const [servicoSelecionado, setServicoSelecionado] = useState<ServicoItem | null>(null);
+  const [senhaMotorista, setSenhaMotorista] = useState('');
+  const [kmFinalInput, setKmFinalInput] = useState('');
+  const [encerrarMsg, setEncerrarMsg] = useState<string>('');
+  const [policialEncerrar, setPolicialEncerrar] = useState<{ id: string; NOME: string; nomeGuerra1?: string } | null>(null);
 
   const allowedOperacionais = ['05', '06', '08', '11', '12', '13'];
   const isOperacionalCadastro = (cad?: string): boolean => {
@@ -193,7 +205,7 @@ const CAVBot = () => {
         viaturaId: avariasViatura.id,
         cadastro: avariasViatura.CADASTRO || null,
         placa: avariasViatura.PLACA,
-        motorista: servicoDraft.motorista || policialLogado.nomeGuerra1 || policialLogado.NOME,
+        motorista: servicoDraft.motorista || (policialLogado.nomeGuerra1 || policialLogado.NOME),
         motoristaId: policialLogado.id,
         kmInicial: servicoDraft.kmInicial,
         area: servicoDraft.area,
@@ -694,6 +706,23 @@ const CAVBot = () => {
                 >
                   🛠️ Avarias
                 </button>
+                <button
+                  className="quick-button"
+                  onClick={async () => {
+                    setShowEncerrarModal(true);
+                    setEncerrarStep('list');
+                    try {
+                      const q = query(collection(db, 'servicosDiarios'), where('status','==','aberto'));
+                      const snap = await getDocs(q);
+                      const items: ServicoItem[] = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+                      setServicosAbertos(items);
+                    } catch (e) {
+                      pushBot('Erro ao carregar serviços abertos.');
+                    }
+                  }}
+                >
+                  ⏹️ Encerrar Serviço
+                </button
               </div>
             </div>
           )}
@@ -785,6 +814,7 @@ const CAVBot = () => {
                     <span
                       key={a.id}
                       title={`${a.tipo} • ${a.gravidade}${a.descricao ? ' • ' + a.descricao : ''}`}
+                      onClick={() => { setAvariaSelecionada(a); setShowAvariaDetalhe(true); }}
                       style={{
                         position: 'absolute',
                         left: `${((a.x ?? 0) > 1 ? (a.x ?? 0) : (a.x ?? 0) * 100)}%`,
@@ -796,6 +826,7 @@ const CAVBot = () => {
                         border: '2px solid #fff',
                         transform: 'translate(-50%, -50%)',
                         boxShadow: '0 0 0 2px rgba(239,68,68,0.35)',
+                        cursor: 'pointer',
                       }}
                     />
                   ))}
@@ -823,8 +854,123 @@ const CAVBot = () => {
                 <div className="quick-actions-header" style={{ marginTop: '0.75rem' }}>
                   Imagem do ângulo "{avariasAngulo}" não configurada para esta viatura.
                 </div>
-              )}
+        </div>
+      )}
 
+      {showAvariaDetalhe && avariaSelecionada && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div style={{ background: '#111827', border: '1px solid #374151', borderRadius: 12, padding: '1rem', width: 'min(520px, 92vw)' }}>
+            <div className="quick-actions-header" style={{ marginBottom: '0.75rem' }}>Detalhes da avaria</div>
+            <div style={{ color: '#e5e7eb', display: 'grid', gap: 8 }}>
+              <div><strong>Tipo:</strong> {avariaSelecionada.tipo}</div>
+              <div><strong>Gravidade:</strong> {avariaSelecionada.gravidade}</div>
+              {avariaSelecionada.descricao && (<div><strong>Descrição:</strong> {avariaSelecionada.descricao}</div>)}
+              <div><strong>Ângulo:</strong> {avariaSelecionada.angulo}</div>
+              <div><strong>Responsável:</strong> {avariaSelecionada.responsavel}</div>
+              <div><strong>Data:</strong> {new Date(avariaSelecionada.data).toLocaleString('pt-BR')}</div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+              <button className="quick-button" onClick={() => { setShowAvariaDetalhe(false); setAvariaSelecionada(null); }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEncerrarModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div style={{ background: '#111827', border: '1px solid #374151', borderRadius: 12, padding: '1rem', width: 'min(600px, 94vw)' }}>
+            <div className="quick-actions-header" style={{ marginBottom: '0.75rem' }}>Encerrar Serviço</div>
+
+            {encerrarStep === 'list' && (
+              <div className="quick-buttons" style={{ gridTemplateColumns: 'repeat(1, 1fr)' }}>
+                {servicosAbertos.length === 0 ? (
+                  <div className="quick-actions-header">Não há serviços abertos.</div>
+                ) : (
+                  servicosAbertos.map(s => (
+                    <button key={s.id} className="quick-button" onClick={() => { setServicoSelecionado(s); setEncerrarStep('senha'); setEncerrarMsg(''); }}>
+                      {s.cadastro || s.placa} • Motorista: {s.motorista || '-'} • KM inicial: {s.kmInicial ?? '-'}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+
+            {encerrarStep === 'senha' && servicoSelecionado && (
+              <div style={{ display: 'grid', gap: 10 }}>
+                <div style={{ color: '#9ca3af' }}>Informe a senha do motorista ({servicoSelecionado.motorista || 'motorista'})</div>
+                <input type="password" value={senhaMotorista} onChange={e => setSenhaMotorista(e.target.value)} placeholder="Senha" style={{ width: '100%', background: '#1f2937', color: '#f9fafb', border: '1px solid #374151', borderRadius: 8, padding: '0.5rem 0.75rem' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <button className="quick-button" onClick={() => { setEncerrarStep('list'); setServicoSelecionado(null); setSenhaMotorista(''); }}>{'⬅️ Voltar'}</button>
+                  <button className="quick-button" onClick={async () => {
+                    try {
+                      if (!servicoSelecionado?.motoristaId) { setEncerrarMsg('Motorista não identificado.'); return; }
+                      const polRef = doc(db, 'policiais', servicoSelecionado.motoristaId);
+                      const polSnap = await getDoc(polRef);
+                      if (!polSnap.exists()) { setEncerrarMsg('Motorista não encontrado.'); return; }
+                      const data: any = polSnap.data();
+                      const primeiroAcesso = data.primeiroAcesso !== false || !data.senha;
+                      const senhaOk = primeiroAcesso ? senhaMotorista === String(data.Matrícula) : data.senha === senhaMotorista;
+                      if (!senhaOk) { setEncerrarMsg('Senha incorreta.'); return; }
+                      setPolicialEncerrar({ id: polSnap.id, NOME: data.NOME, nomeGuerra1: data['NOME DE GUERRA1'] || data['NOME DE GUERRA'] || data.NOME });
+                      setEncerrarStep('km');
+                      setEncerrarMsg('');
+                    } catch (e) {
+                      setEncerrarMsg('Erro ao validar senha.');
+                    }
+                  }}>Validar</button>
+                </div>
+                {encerrarMsg && <div style={{ color: '#fca5a5' }}>{encerrarMsg}</div>}
+              </div>
+            )}
+
+            {encerrarStep === 'km' && servicoSelecionado && (
+              <div style={{ display: 'grid', gap: 10 }}>
+                <div style={{ color: '#9ca3af' }}>Informe o KM final da VTR ({servicoSelecionado.cadastro || servicoSelecionado.placa})</div>
+                <input inputMode="numeric" value={kmFinalInput} onChange={e => setKmFinalInput(e.target.value)} placeholder="KM final" style={{ width: '100%', background: '#1f2937', color: '#f9fafb', border: '1px solid #374151', borderRadius: 8, padding: '0.5rem 0.75rem' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <button className="quick-button" onClick={() => { setEncerrarStep('senha'); }}>{'⬅️ Voltar'}</button>
+                  <button className="quick-button" onClick={async () => {
+                    const kmf = parseInt(kmFinalInput.replace(/\D/g,'') || '');
+                    if (isNaN(kmf)) { setEncerrarMsg('KM inválido.'); return; }
+                    try {
+                      // Atualizar serviço
+                      await updateDoc(doc(db, 'servicosDiarios', servicoSelecionado.id), {
+                        kmFinal: kmf,
+                        status: 'encerrado',
+                        encerradoEm: new Date().toISOString(),
+                        encerradoPorId: policialEncerrar?.id || null,
+                        encerradoPorNome: policialEncerrar?.NOME || null,
+                        encerradoPorNomeGuerra1: policialEncerrar?.nomeGuerra1 || null,
+                      });
+                      // Atualizar KM da frota
+                      if (servicoSelecionado.viaturaId) {
+                        await updateDoc(doc(db, 'frota', servicoSelecionado.viaturaId), { KM: kmf });
+                      }
+                      setEncerrarMsg('✅ Serviço encerrado com sucesso.');
+                      setTimeout(() => {
+                        setShowEncerrarModal(false);
+                        setEncerrarStep('list');
+                        setServicoSelecionado(null);
+                        setServicosAbertos([]);
+                        setSenhaMotorista('');
+                        setKmFinalInput('');
+                        setEncerrarMsg('');
+                      }, 1000);
+                    } catch (e) {
+                      setEncerrarMsg('Erro ao encerrar serviço.');
+                    }
+                  }}>Encerrar</button>
+                </div>
+                {encerrarMsg && <div style={{ color: encerrarMsg.startsWith('✅') ? '#86efac' : '#fca5a5' }}>{encerrarMsg}</div>}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+              <button className="quick-button" onClick={() => setShowEncerrarModal(false)}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
               {/* Ações de serviço */}
               <div className="quick-buttons" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginTop: '0.75rem' }}>
