@@ -53,6 +53,12 @@ All colors MUST be HSL.
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Love theme tokens */
+    --love: 345 80% 55%;
+    --love-foreground: 0 0% 100%;
+    --love-glow: 345 80% 65%;
+    --gradient-love: linear-gradient(135deg, hsl(var(--love)) 0%, hsl(var(--love-glow)) 100%);
   }
 
   .dark {
@@ -91,6 +97,12 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Love theme tokens (dark) */
+    --love: 350 85% 60%;
+    --love-foreground: 0 0% 100%;
+    --love-glow: 350 85% 70%;
+    --gradient-love: linear-gradient(135deg, hsl(var(--love)) 0%, hsl(var(--love-glow)) 100%);
   }
 }
 
@@ -102,4 +114,16 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Love theme utilities */
+.text-gradient-love {
+  background-image: var(--gradient-love);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.heart-glow {
+  filter: drop-shadow(0 0 24px hsl(var(--love)/0.35));
 }

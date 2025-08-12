@@ -61,6 +61,10 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				love: {
+					DEFAULT: 'hsl(var(--love))',
+					foreground: 'hsl(var(--love-foreground))'
 				}
 			},
 			borderRadius: {
@@ -84,11 +88,18 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				heartbeat: {
+					'0%, 100%': { transform: 'scale(1)' },
+					'25%': { transform: 'scale(1.06)' },
+					'50%': { transform: 'scale(1.12)' },
+					'75%': { transform: 'scale(1.06)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				heartbeat: 'heartbeat 1.8s ease-in-out infinite'
 			}
 		}
 	},
