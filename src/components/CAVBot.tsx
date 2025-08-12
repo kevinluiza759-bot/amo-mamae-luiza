@@ -722,7 +722,7 @@ const CAVBot = () => {
                   }}
                 >
                   ⏹️ Encerrar Serviço
-                </button
+                </button>
               </div>
             </div>
           )}
@@ -854,7 +854,140 @@ const CAVBot = () => {
                 <div className="quick-actions-header" style={{ marginTop: '0.75rem' }}>
                   Imagem do ângulo "{avariasAngulo}" não configurada para esta viatura.
                 </div>
-        </div>
+              )}
+
+              {/* Ações de serviço */}
+              <div className="quick-buttons" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginTop: '0.75rem' }}>
+                {!servicoAberto ? (
+                  <button
+                    className="quick-button"
+                    onClick={() => { setServicoDraft(prev => ({ ...prev, motorista: policialLogado?.NOME || 'Motorista' })); setFlow(prev => ({ ...prev, stage: 'service_start_km' })); pushBot('Informe o KM inicial:'); }}
+                  >
+                    ▶️ Iniciar Serviço
+                  </button>
+                ) : (
+                  <button
+                    className="quick-button"
+                    onClick={() => { setFlow(prev => ({ ...prev, stage: 'service_end_km' })); pushBot('Informe o KM final:'); }}
+                  >
+                    ⏹️ Encerrar Serviço
+                  </button>
+                )}
+                <button
+                  className="quick-button"
+                  onClick={() => { setFlow(prev => ({ ...prev, stage: 'ask_target' })); startVtrSelection(); pushBot('Trocar VTR: escolha a frota.'); }}
+                >
+                  🚘 Trocar VTR
+                </button>
+              </div>
+
+              {/* Registrar nova avaria */}
+              <div className="quick-buttons" style={{ gridTemplateColumns: 'repeat(1, 1fr)', marginTop: '0.75rem' }}>
+                <button
+                  className="quick-button"
+                  onClick={() => {
+                    const isAnguloComImagem = (['frontal','traseira','esquerdo','direito'] as const).includes(avariasAngulo as any) && !!getImagemAngulo();
+                    if (isAnguloComImagem) {
+                      pushBot('Clique na imagem para marcar a posição e abrir o formulário da avaria.');
+                    } else {
+                      setPosicaoTemporaria(null);
+                      setModalTipo('');
+                      setModalDesc('');
+                      setModalGravidade('LEVE');
+                      setShowAvariaModal(true);
+                    }
+                  }}
+                >
+                  ➕ Registrar Avaria no ângulo {avariasAngulo}
+                </button>
+              </div>
+
+              {/* Lista de avarias do ângulo */}
+              <div style={{ marginTop: '0.75rem' }}>
+                <div className="quick-actions-header" style={{ marginBottom: '0.5rem' }}>
+                  Avarias neste ângulo
+                </div>
+                <div className="quick-buttons" style={{ gridTemplateColumns: 'repeat(1, 1fr)' }}>
+                  {avariasLista.filter((a: any) => a.angulo === avariasAngulo).length === 0 ? (
+                    <div className="quick-actions-header">Nenhuma avaria registrada.</div>
+                  ) : (
+                    avariasLista.filter((a: any) => a.angulo === avariasAngulo).map((a: any) => (
+                      <div key={a.id} className="quick-button" style={{ justifyContent: 'space-between' }}>
+                        <div>
+                          <strong>{a.tipo}</strong> — {a.gravidade}
+                          {a.descricao ? ` • ${a.descricao}` : ''}
+                        </div>
+                        <small style={{ color: '#9ca3af' }}>{new Date(a.data).toLocaleDateString('pt-BR')}</small>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+
+        <footer className="chat-input-area">
+          {!showQuickButtons && (
+            <button
+              onClick={voltarAoMenuPrincipal}
+              className="menu-button-footer"
+              title="Menu principal"
+            >
+              🏠
+            </button>
+          )}
+          
+          <button
+            type="button"
+            className={`mic-button ${listening ? 'recording' : ''}`}
+            onClick={toggleRecording}
+            title={listening ? 'Parar gravação' : 'Gravar mensagem de voz'}
+          >
+            {listening ? <MicOff size={24} /> : <Mic size={24} />}
+          </button>
+
+          <input
+            type="text"
+            placeholder="Digite sua mensagem..."
+            value={inputText}
+            onChange={e => setInputText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+            // Linha 'disabled={listening}' removida daqui
+            autoComplete="off"
+          />
+
+          <button
+            type="button"
+            onClick={() => handleSendMessage()}
+            disabled={!inputText.trim() || listening}
+            className="send-button"
+            aria-label="Enviar mensagem"
+          >
+            <Send size={24} />
+          </button>
+        </footer>
+      </div>
+
+      {selectedViatura && (
+        <ViaturaModal
+          viatura={selectedViatura}
+          onClose={() => setSelectedViatura(null)}
+        />
+      )}
+
+      {showEntradaForm && (
+        <FormEntradaOficina
+          onClose={() => setShowEntradaForm(false)}
+          onSuccess={handleFormSuccess}
+        />
+      )}
+
+      {showSaidaForm && (
+        <FormSaidaOficina
+          onClose={() => setShowSaidaForm(false)}
+          onSuccess={handleFormSuccess}
+        />
       )}
 
       {showAvariaDetalhe && avariaSelecionada && (
@@ -970,129 +1103,6 @@ const CAVBot = () => {
             </div>
           </div>
         </div>
-      )}
-
-              {/* Ações de serviço */}
-              <div className="quick-buttons" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginTop: '0.75rem' }}>
-                {!servicoAberto ? (
-                  <button
-                    className="quick-button"
-                    onClick={() => { setServicoDraft(prev => ({ ...prev, motorista: policialLogado?.NOME || 'Motorista' })); setFlow(prev => ({ ...prev, stage: 'service_start_km' })); pushBot('Informe o KM inicial:'); }}
-                  >
-                    ▶️ Iniciar Serviço
-                  </button>
-                ) : (
-                  <button
-                    className="quick-button"
-                    onClick={() => { setFlow(prev => ({ ...prev, stage: 'service_end_km' })); pushBot('Informe o KM final:'); }}
-                  >
-                    ⏹️ Encerrar Serviço
-                  </button>
-                )}
-                <button
-                  className="quick-button"
-                  onClick={() => { setFlow(prev => ({ ...prev, stage: 'ask_target' })); startVtrSelection(); pushBot('Trocar VTR: escolha a frota.'); }}
-                >
-                  🚘 Trocar VTR
-                </button>
-              </div>
-
-              {/* Registrar nova avaria */}
-              <div className="quick-buttons" style={{ gridTemplateColumns: 'repeat(1, 1fr)', marginTop: '0.75rem' }}>
-                <button
-                  className="quick-button"
-                  onClick={() => { setFlow(prev => ({ ...prev, stage: 'avarias_ask_tipo' })); pushBot('Informe o tipo da avaria:'); }}
-                >
-                  ➕ Registrar Avaria no ângulo {avariasAngulo}
-                </button>
-              </div>
-
-              {/* Lista de avarias do ângulo */}
-              <div style={{ marginTop: '0.75rem' }}>
-                <div className="quick-actions-header" style={{ marginBottom: '0.5rem' }}>
-                  Avarias neste ângulo
-                </div>
-                <div className="quick-buttons" style={{ gridTemplateColumns: 'repeat(1, 1fr)' }}>
-                  {avariasLista.filter((a: any) => a.angulo === avariasAngulo).length === 0 ? (
-                    <div className="quick-actions-header">Nenhuma avaria registrada.</div>
-                  ) : (
-                    avariasLista.filter((a: any) => a.angulo === avariasAngulo).map((a: any) => (
-                      <div key={a.id} className="quick-button" style={{ justifyContent: 'space-between' }}>
-                        <div>
-                          <strong>{a.tipo}</strong> — {a.gravidade}
-                          {a.descricao ? ` • ${a.descricao}` : ''}
-                        </div>
-                        <small style={{ color: '#9ca3af' }}>{new Date(a.data).toLocaleDateString('pt-BR')}</small>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </main>
-
-        <footer className="chat-input-area">
-          {!showQuickButtons && (
-            <button
-              onClick={voltarAoMenuPrincipal}
-              className="menu-button-footer"
-              title="Menu principal"
-            >
-              🏠
-            </button>
-          )}
-          
-          <button
-            type="button"
-            className={`mic-button ${listening ? 'recording' : ''}`}
-            onClick={toggleRecording}
-            title={listening ? 'Parar gravação' : 'Gravar mensagem de voz'}
-          >
-            {listening ? <MicOff size={24} /> : <Mic size={24} />}
-          </button>
-
-          <input
-            type="text"
-            placeholder="Digite sua mensagem..."
-            value={inputText}
-            onChange={e => setInputText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-            // Linha 'disabled={listening}' removida daqui
-            autoComplete="off"
-          />
-
-          <button
-            type="button"
-            onClick={() => handleSendMessage()}
-            disabled={!inputText.trim() || listening}
-            className="send-button"
-            aria-label="Enviar mensagem"
-          >
-            <Send size={24} />
-          </button>
-        </footer>
-      </div>
-
-      {selectedViatura && (
-        <ViaturaModal
-          viatura={selectedViatura}
-          onClose={() => setSelectedViatura(null)}
-        />
-      )}
-
-      {showEntradaForm && (
-        <FormEntradaOficina
-          onClose={() => setShowEntradaForm(false)}
-          onSuccess={handleFormSuccess}
-        />
-      )}
-
-      {showSaidaForm && (
-        <FormSaidaOficina
-          onClose={() => setShowSaidaForm(false)}
-          onSuccess={handleFormSuccess}
-        />
       )}
 
       {showAvariaModal && (
