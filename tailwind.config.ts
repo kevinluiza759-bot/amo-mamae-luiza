@@ -52,6 +52,11 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				/* Military tactical colors */
+				'tactical-dark': 'hsl(var(--tactical-dark))',
+				'tactical-medium': 'hsl(var(--tactical-medium))',
+				'tactical-light': 'hsl(var(--tactical-light))',
+				'tactical-text': 'hsl(var(--tactical-text))',
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
@@ -61,11 +66,15 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				},
-				love: {
-					DEFAULT: 'hsl(var(--love))',
-					foreground: 'hsl(var(--love-foreground))'
 				}
+			},
+			fontFamily: {
+				'military': ['Roboto Condensed', 'Oswald', 'Arial Black', 'sans-serif'],
+			},
+			boxShadow: {
+				'tactical': 'var(--shadow-tactical)',
+				'tactical-inset': 'var(--shadow-inset)',
+				'tactical-glow': 'var(--glow-tactical)',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -88,18 +97,11 @@ export default {
 					to: {
 						height: '0'
 					}
-				},
-				heartbeat: {
-					'0%, 100%': { transform: 'scale(1)' },
-					'25%': { transform: 'scale(1.06)' },
-					'50%': { transform: 'scale(1.12)' },
-					'75%': { transform: 'scale(1.06)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out',
-				heartbeat: 'heartbeat 1.8s ease-in-out infinite'
+				'accordion-up': 'accordion-up 0.2s ease-out'
 			}
 		}
 	},
